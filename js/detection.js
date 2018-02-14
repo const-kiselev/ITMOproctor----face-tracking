@@ -1,21 +1,27 @@
 (function(window, undefined){
 	window.detection = window.detection || {};
 
-	// минимальный процент пересечения двух rects 
+	    // минимальный процент пересечения двух rects
 	var SQUARES_INTERSECTION_MIN_PERCENT = 50;
 
-	// Конструктор
+	    // Конструктор todo: реализовать далее!!!!
 	detection.Person = function(){
 		var lifeTime= 0, // ms
 			eyes = [],
 			faces = [],
 			mouths = [];
 	};
-
+        // array of detected persons
 	detection.persons = [];
+	    // массив с подозрительными элементами
 	detection.suspectObjs = [];
-
+    /**
+     * PUBLIC function
+     * публичный метод, который выполняет поиск лиц на кадре (frame)
+     * @param rects
+     */
 	detection.findFace = function(rects) {
+	        // разбиваем распознанные элементы согласно типам (typeOfArea)
 		var eyes = rects.filter(function(rect){
 			return rect.typeOfArea == "eye";
 		});
@@ -46,17 +52,16 @@
          * Если их несколько, то обязательно проверяется
          * их пересечение, но если есть пересечение 10%,
          * то ничего страшного. Тогда после определения person,
-         * удаляем области, которые ему пренадлежат и опять
+         * todo: удаляем области, которые ему пренадлежат и опять
          * запускаем faceViaFaces
-         * стоит добавить данные функции в findFace, так как они
-         * вызываются только оттуда, для того, чтобы избежать
-         * ошибок с [[scope]]
          */
         function faceViaFaces(){
                 // faces, eyes & mouths из [[scope]]
             var currentFaceArea = findAreaAndDelete(faces, "face");
+                // находим все элементы внутри области face
             var areas = findIntersections(eyes.concat(mouths), 60, 100, currentFaceArea);
-
+            updateRects(faces, areas);
+            deleteAllRectsWithType(areas, "face");
                 // объединяем потому, что бибилиотека
                 // достаточно часто определяет глаз как mouth
                 // вызываем функцию нахлждения пересечений, определенной
@@ -80,17 +85,23 @@
         function faceViaMouths(){}
 	};
     /**
-     * Метод сравнения: вычисление принадлежности новых областей
+     * Метод сравнения: вычисление принадлежности новых
+     * областей (скорей всего элементов suspectObjs и неопознанных областей)
      * относительно существующих областей в persons
      * @param rects
      */
-    detection.comparison = function(rects) {
+    var comparison = function(rects) {};
 
-    };
-
-	/**
-	* метод нахождения пересечений.
-	*/
+    /**
+     * метод нахождения пересечений.
+     * @param {Array} rects -- массив областей
+     * @param MIN_INTERSECTION_SQ_PERCENT -- минимальное процентное
+     *  соотношение площади пересекаемой области к площади области
+     * @param MAX_INTERSECTION_SQ_PERCENT
+     * @param {object} searchArea -- определенная область, с которой
+     *  необходимо найти пересекающиеся области из rects
+     * @returns {Array}
+     */
 	var findIntersections = function(rects, MIN_INTERSECTION_SQ_PERCENT,
                                      MAX_INTERSECTION_SQ_PERCENT, searchArea){
 		var xProjectionsArray = [],
@@ -104,18 +115,26 @@
             xProjectionsArray[i] = searchArea.x + searchArea.width;
             yProjectionsArray[i++] = searchArea.y + searchArea.height;
         }
+            // array|x0|x1|x2|y3|...|xN-2|xN-1| четные ЧИСЛА характеризуют (аналогично для координат по Oy)
+            // меньшую координату границы прямоугольника (ОБЛАСТИ, rect) на оси
+            // на данной особенности завязаны все манипуляции. Поэтому удобно передавать
+            // или работать именно с координатой с нечетным индексом (i), это означает,
+            // что мы обращаемся к области с индексом i/2 in rects
+            // для замены координат с четным индексом есть функция onlyFirstValue() (см. ниже)
+            // так же после (или до, в зависимости от задачи) этого желательно
+            // проверить на повторяющиеся индексы. для удаления исп. функцию uniqueAreaIndex() (см. ниже)
 		rects.forEach(function(rect){
 			xProjectionsArray[i] = rect.x;
 			yProjectionsArray[i++] = rect.y;
 			xProjectionsArray[i] = rect.x + rect.width;
 			yProjectionsArray[i++] = rect.y + rect.height;
 		});
-		// в данном цикле переменная i характеризует область,
-        // относительной которой проверяются отсальные
-        // области на факт существования общей площади (пересечения)
         var n = xProjectionsArray.length;
         if(searchArea)
             {n = 1;}
+            // в данном цикле переменная i характеризует область,
+            // относительной которой проверяются отсальные
+            // области на факт существования общей площади (пересечения)
 		for(var i=0; i<n; i=i+2)
 		{
 				// точки пересечения. Хранится индекс точки, 
@@ -144,9 +163,9 @@
             intersections = unique(intersections);
 			intersections = uniqueAreaIndex(intersections);
 			intersections = onlyFirstValue(intersections);
-			// количесвто пересечений относительно объекта i
+			    // количесвто пересечений относительно объекта i
 			var numOfIntersections = 0;
-            // вычисляем общую площадь найденный элементов,
+                // вычисляем общую площадь найденный элементов,
 				// которыйе пересекаются с текущим и проверяем с
 				// минимально допустимой площадью
 			intersections.forEach(function cycle(point){
@@ -163,8 +182,8 @@
                     //cycle.stop = true;
 				}
 			});
-			// в конце цикла i добавляем в результирующий массив саму область i,
-            // в которой сохраняем количество пересечений
+                // в конце цикла i добавляем в результирующий массив саму область i,
+                // в которой сохраняем количество пересечений
 			if(numOfIntersections){
 			    if(searchArea)
                     var res = rectEquivalent([searchArea], xProjectionsArray[i], yProjectionsArray[i],
@@ -179,7 +198,7 @@
             }
 		}
 
-        // в результирующем массиве пересекающиеся rects
+            // в результирующем массиве пересекающиеся rects
         return result;
 	};
     /**
@@ -198,10 +217,23 @@
     /**
      * Здесь учитываем количество областей, которые имеют
      * пересечения, потому что они будут добавлены, практически,
-     * с большой вероятностью.
+     * с большОй вероятностью.
      * @param rects
      */
-    var findEyes = function(rects){};
+    var findEyes = function(rects){
+            // метод треугольника
+        function triangle(){
+
+        }
+    };
+    /**
+     * площадь пересечения двух областей
+     * @param point
+     * @param i
+     * @param xProjectionsArray
+     * @param yProjectionsArray
+     * @returns {number}
+     */
     var intersectionSquare = function(point, i, xProjectionsArray, yProjectionsArray){
         var xLen, yLen;
         if(xProjectionsArray[point]>=xProjectionsArray[i]){
@@ -232,8 +264,18 @@
         }
         return xLen*yLen;
     };
-
-    // процент пересекаемой области относительно общей площади объектов
+    /**
+     * процент нахождения части (пересечения) одной области в другой
+     * формула вычисления: S(ПЕРЕСЕЧЕНИЕ(A,B))/S(A)*100
+     * где S() — площадь, A - область, которая пересекает область B.
+     * то есть, если S(A)=ПЕРЕСЕЧЕНИЕ(A,B), то percentOfIntersectionSq() вернет 100
+     * @param sq
+     * @param point
+     * @param i
+     * @param xProjectionsArray
+     * @param yProjectionsArray
+     * @returns {number}
+     */
     var percentOfIntersectionSq = function (sq,point, i, xProjectionsArray, yProjectionsArray){
         var sqA, sqB;
         sqA = (xProjectionsArray[point+1]-xProjectionsArray[point])*
@@ -242,7 +284,6 @@
             (yProjectionsArray[i+1]-yProjectionsArray[i]);
         return (sq/sqA)*100;
     }
-
 	var uniqueAreaIndex = function(A){
 		var n = A.length, k = 0, B = [];
 		for(var i = 0; i < n; i++) {
@@ -258,14 +299,15 @@
 
 		return B;
 	};
-	var onlyFirstValue = function(A){
+    var onlyFirstValue = function(A){
         var n = A.length, k = 0, B = [];
         for(var i = 0; i<n; i++)
             if(odd(A[i]))
                 A[i] = A[i]-1;
         return A;
     };
-
+        // возвращает rect с аналогичными параметарми. Нужен для того,
+        // чтобы не потерять другие свойства объектов-областей.
 	var rectEquivalent = function(rects, x, y, w, h){
 	    var result;
 		rects.forEach(function cycle(rect){
@@ -277,9 +319,9 @@
 		});
 		return result;
 	};
-
-    // проверка на нечетность
+        // проверка на нечетность
     var odd = function(number){return number%2;};
+        // удаление повторяющихся элементов
     var unique = function (A){
         var n = A.length, k = 0, B = [];
         for (var i = 0; i < n; i++)
@@ -289,7 +331,9 @@
         }
         return B;
     };
-
+        // поиск и удаление областей с заданным типом
+        // !!! удаляется только первый найденный элемент
+        // !!! для удаления всех таких областей есть deleteAllRectsWithType()
     var findAreaAndDelete = function(rects, type){
         var result;
         rects.forEach(function cycle(rect, index){
@@ -302,8 +346,13 @@
         });
         return result;
     };
+        // поиск и удаление ВСЕХ областей с заданным типом
     var deleteAllRectsWithType = function(rects, type){
-
+        rects.forEach(function(rect, index){
+            if(rect.typeOfArea == type)
+                delete rects[index];
+        });
+        return rects;
     };
     var updateRects = function(original, updated){
         original.forEach(function(origRect, index){
@@ -313,11 +362,6 @@
         });
         return original;
     };
-
 	detection.addRect = function(x, y, width, heigth){};
-
 	detection.findPerson = function(){};
-
-
-
 } (window));
