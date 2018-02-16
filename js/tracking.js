@@ -1005,9 +1005,6 @@
     if (blockEdgesDensity < edgesDensity) {
       return true;
     }
-    if((i>68)&&(i<282)&&(j>103)&&(j<317)){
-      //console.log(blockEdgesDensity,i, j, width, blockWidth, blockHeight);
-    }
     return false;
   };
 
