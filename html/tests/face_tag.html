@@ -36,10 +36,21 @@
   }
 
   .eye{
-    border-color:#FF2B2B;
+    border-color: rgba(255, 43, 43, 0.56);
   }
   .mouth {
-    border-color:#FFEC2B;
+    border-color: rgba(255, 236, 43, 0.43);
+  }
+
+  .leftEye{
+    border-color: #0400e2;
+  }
+
+  .rightEye{
+    border-color: #ff00de;
+  }
+  .mouth {
+    border-color: #daff00;
   }
 
   .arrow {
@@ -103,20 +114,20 @@
       tracking.track(img, tracker);
 
       tracker.on('track', function(event) {
+          var time = performance.now();
+
           detection.findFace(event.data);
-        event.data.forEach(function(rect) {
-          
-          console.log(rect.x, rect.y, rect.width, rect.height, rect.typeOfArea);
-
-
-          plotRectangle(rect.x, rect.y, rect.width, rect.height, rect.typeOfArea);
-
-        });
+          time = performance.now() - time;
+          console.log('Время выполнения detection.findFace = ', time);
+          event.data.forEach(function(rect) {
+              console.log(rect);
+              plotRectangle(rect.x, rect.y, rect.width, rect.height, rect.typeOfArea, rect.facePart);
+          });
       });
 
       var friends = [ 'Kiselev' ];
 
-      var plotRectangle = function(x, y, w, h, t) {
+      var plotRectangle = function(x, y, w, h, t, facePart) {
         var rect = document.createElement('div');
         var arrow = document.createElement('div');
         var input = document.createElement('input');
@@ -138,6 +149,12 @@
             rect.classList.add('eye');
           else if(t=='mouth')
             rect.classList.add('mouth');
+          if(facePart == "leftEye")
+              rect.classList.add('leftEye');
+          else if(facePart == "rightEye")
+              rect.classList.add('rightEye');
+          else if(facePart == "mouth")
+              rect.classList.add('detectMouth');
 
         rect.appendChild(input);
         rect.appendChild(arrow);

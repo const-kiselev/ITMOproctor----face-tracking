@@ -33,15 +33,15 @@
 		});
 
 		if(faces.length) {
-			//console.log("calling faceViaFaces()");
+			console.log("calling faceViaFaces()");
             faceViaFaces();
         }
 		else if(eyes.length) {
-            //console.log("calling faceViaEyes()");
+            console.log("calling faceViaEyes()");
             faceViaEyes();
         }
 		else {
-            //console.log("calling faceViaEyes()");
+            console.log("calling faceViaEyes()");
             faceViaMouths();
         }
 
@@ -75,7 +75,9 @@
                 eyes = updateRects(eyes, intersections);
                 mouths = updateRects(mouths, intersections);
             }
-            faceVerificationOnFaceArea(eyes.concat(mouths), currentFaceArea);
+            var res = faceVerificationOnFaceArea(eyes.concat(mouths), currentFaceArea);
+            eyes = updateRects(eyes, res);
+            mouths = updateRects(mouths, res);
 
         }
         /**
@@ -134,7 +136,7 @@
         if(searchArea)
             {n = 1;}
             // в данном цикле переменная i характеризует область,
-            // относительной которой проверяются отсальные
+            // относительной которой проверяются остальные
             // области на факт существования общей площади (пересечения)
 		for(var i=0; i<n; i=i+2)
 		{
@@ -179,9 +181,6 @@
                         xProjectionsArray[point+1]-xProjectionsArray[point],
                         yProjectionsArray[point+1]-yProjectionsArray[point]);
 					if(!searchArea)
-                            // todo: костыль...
-					        // вообще данный параметр должен присваиваться в любом случае, но может
-					        // произойти проблема при вычислении методом треугольника
 					    res.intersectionWith = i/2; // индекс элемента, с которым есть пересечение/
 				    result.push(res);
                     //cycle.stop = true;
@@ -189,12 +188,12 @@
 			});
                 // в конце цикла i добавляем в результирующий массив саму область i,
                 // в которой сохраняем количество пересечений
-			if(numOfIntersections){
-			    if(searchArea)
-                    var res = rectEquivalent([searchArea], xProjectionsArray[i], yProjectionsArray[i],
-                        xProjectionsArray[i+1]-xProjectionsArray[i],
-                        yProjectionsArray[i+1]-yProjectionsArray[i]);
-			    else
+			if(numOfIntersections && !searchArea){
+
+                    // var res = rectEquivalent([searchArea], xProjectionsArray[i], yProjectionsArray[i],
+                    //     xProjectionsArray[i+1]-xProjectionsArray[i],
+                    //     yProjectionsArray[i+1]-yProjectionsArray[i]);
+
                     var res = rectEquivalent(rects, xProjectionsArray[i], yProjectionsArray[i],
                         xProjectionsArray[i+1]-xProjectionsArray[i],
                         yProjectionsArray[i+1]-yProjectionsArray[i]);
@@ -217,51 +216,102 @@
      * @param face - рассматриваемая область `лицо`
      */
     var faceVerificationOnFaceArea  = function(eAndM, face){
+            //
+        var triangleRes = triangle();
+        console.log("triangleRes = "+triangleRes);
+        if(!triangleRes){
+            // todo: используем дургие методы. Сегодня делаю! И тестирую!
+        }
+        else if(triangleRes == 1){
+            // todo: реализовываем алгоритм поиска рта
+
+        }
+        else if(triangleRes == 2)
+        {
+            // todo: Все ок! Верификация пройдена. Теперь нам надо выйти из функции верификации лица и далее выполнить или добавление person или сопоставить с уже существующими
+        }
+        return eAndM;
+
         // метод треугольника
+        // todo: необходимо тестирование
         function triangle(){
-                // в первую очередь нам необходимо удалить все элементь
+                // в первую очередь нам необходимо удалить все элементы с параметром intersectionWith
             var uniqueRects = deleteAllIntersectedAreas(eAndM);
+            console.log("uniqueRects:", uniqueRects);
                 // вычисляем левую половину области лица и правую
-            var leftPartOfFace = face;
-            leftPartOfFace.width = face.width/2;
-            var rightPartOfFace = leftPartOfFace;
+            var leftPartOfFace = makeClone(face);
+            leftPartOfFace.width = face.width /2;
+            var rightPartOfFace = makeClone(leftPartOfFace);
             rightPartOfFace.x+=leftPartOfFace.width;
                 // находим области, которые в левой и правой половине
             var areasOfLeftSide = findIntersections(uniqueRects, 60, 100, leftPartOfFace),
                 areasOfRightSide = findIntersections(uniqueRects, 60, 100, rightPartOfFace);
-
-            areasOfLeftSide.forEach(function cycleLeft(leftRect, leftIndex){
+            var res = 0;
+            areasOfLeftSide.forEach(function cycleLeft(leftRect){
                 if(cycleLeft.stop){return;}
-                areasOfRightSide.forEach(function cycleRight(rightRect, rightIndex){
+                areasOfRightSide.forEach(function cycleRight(rightRect){
                     if(cycleRight.stop){return;}
+                    console.log("widthDiff(leftRect, rightRect): ", widthDiff(leftRect, rightRect));
                     if(widthDiff(leftRect, rightRect)>=50){
-                        if(intersectionOy(leftRect, rightRect)){
+                        if(intersectionOy(leftRect, rightRect)>=50){
                                 // получается, что это два глаза!!! Мы их нашли
                                 // todo: фиксируем их в любом случае!!!!!
                             cycleRight.stop = cycleLeft.stop = true;
-                            var leftAreaIndex = equivalentRectIndex(eAndM, leftRect),
-                                rightAreaIndex = equivalentRectIndex(eAndM, rightRect);
-                            eAndM[leftAreaIndex].facePart = "leftEye";
-                            eAndM[rightAreaIndex].facePart = "rightEye";
-                            delete uniqueRects[leftAreaIndex];
-                            delete uniqueRects[rightAreaIndex];
+                            var leftEyeAreaIndex = equivalentRectIndex(eAndM, leftRect),
+                                rightEyeAreaIndex = equivalentRectIndex(eAndM, rightRect);
+                            eAndM[leftEyeAreaIndex].facePart = "leftEye";
+                            eAndM[rightEyeAreaIndex].facePart = "rightEye";
+                            leftEyeAreaIndex = equivalentRectIndex(uniqueRects, leftRect);
+                            uniqueRects.splice(leftEyeAreaIndex, 1);
+                            rightEyeAreaIndex = equivalentRectIndex(uniqueRects, rightRect);
+                            uniqueRects.splice(rightEyeAreaIndex, 1);
+                            res++;
                         }
                     }
                 });
             });
+            if(!res)
+                return res;
                 // условие верификации лица выполнены
                 // осталось найти mouth
                 // todo: после тестов необходимо определить, мб buttomSide должен быть строго ниже detected eyes
-            var buttomSide = face;
+            var buttomSide = makeClone(face);
             buttomSide.height = face.height/2;
             buttomSide.y += buttomSide.height;
-            var suspectedMouths = findIntersections(uniqueRects, 30, 60, buttomSide);
-            if(suspectedMouths.length>1){}
-            else if(suspectedMouths){}
-        }
+            var suspectedMouths = findIntersections(uniqueRects, 20, 60, buttomSide);
+            console.log("suspectedMouths: ", suspectedMouths, "uniqueRects", uniqueRects);
+            if(suspectedMouths.length>1){
+                suspectedMouths.forEach(function(susp){
+                        // смотрим, если процент отклонения рта от центра двух глаз менее 31, то
+                        // добавляем данную область
+                    if (procDeviationBetweenEyes(findRectWithFacePart(eAndM, "leftEye")[0],
+                        findRectWithFacePart(eAndM, "rightEye")[0], susp)<31){
+                        var foundMouthIndex = equivalentRectIndex(eAndM, susp);
+                        eAndM[foundMouthIndex].facePart = "mouth";
+                        delete uniqueRects[foundMouthIndex];
+                        res++;
+                    }
+                });
+                    // todo: проверить условие!!!
+                    // думаю, стоит брать усредненный, гадать не будем
+                    // то есть, будем фильтровать. В теории, у нас есть n найденных облестей, из них только одна подойдет
+                    // по задаче будем фильтровать по средней высоте глаз и чтобы середина не заходила за "серидины" глаз
+                    // алгоритм прост: выбираем ту область, где у нас больше процент близости к центру
+                    // между серединами левого глаза и правого
+
+            }
+            else if(suspectedMouths.length){
+                var foundMouthIndex = equivalentRectIndex(eAndM, suspectedMouths[0]);
+                eAndM[foundMouthIndex].facePart = "mouth";
+                delete uniqueRects[foundMouthIndex];
+                res++;
+            } // на этом ВСЕ в треугольнике!!!!!!!!!
+            return res;
+        } // --- END triangle()
+
     };
     /**
-     * todo: CURRENT WORK
+     * todo: CURRENT WORK --- to check!
      * Здесь учитываем количество областей, которые имеют
      * пересечения, потому что они будут добавлены, практически,
      * с большой вероятностью.
@@ -370,7 +420,7 @@
         var result;
         rects.forEach(function cycle(rect, index){
             if(cycle.stop){ return; }
-            if(rect.x == x && rect.y == y && rect.width == w && rect.height == h){
+            if(rect.x == find.x && rect.y == find.y && rect.width == find.width && rect.height == find.height){
                 result = index;
                 cycle = true;
             }
@@ -407,40 +457,129 @@
     };
         // поиск и удаление ВСЕХ областей с заданным типом
     var deleteAllRectsWithType = function(rects, type){
-        rects.forEach(function(rect, index){
-            if(rect.typeOfArea == type)
-                delete rects[index];
+        var res = [];
+        rects.forEach(function(rect){
+            if(rect.typeOfArea != type)
+                res.push(makeClone(rect));
         });
-        return rects;
+        return res;
     };
         // функция удаления областей, имеющих свойство intersectionWith
     var deleteAllIntersectedAreas = function (rects){
-        rects.forEach(function(rect, index){
-            if(rect.intersectionWith)
-                delete rects[index];
+        var res = [];
+        rects.forEach(function(rect){
+            if(rect.intersectionWith == undefined)
+                res.push(makeClone(rect));
         });
-        return rects;
+        return res;
     };
     var updateRects = function(original, updated){
         original.forEach(function(origRect, index){
             var res = rectEquivalent(updated, origRect.x, origRect.y, origRect.width, origRect.height);
-            if(res)
-                original[index] = res;
+            if(res != undefined)
+                //original[index] = res;
+                for (var key in res)
+                    origRect[key] = res[key];
         });
         return original;
     };
         // функция возвращает процент, на который различаются width областей
     var widthDiff = function(a,b){
-        if(a<b){
+        if(a.width<b.width){
             //  меняем местами
             var tmp = a;
             a = b;
             b = tmp;
         }
-
+        return (b.width/a.width)*100;
+        // var length = 0;
+        // if(b.x >= a.x){
+        //     if(b.x2 >= a.x2) {
+        //         // 3 случай
+        //         length = a.x2 - b.x;
+        //
+        //     }
+        //     else
+        //         // 1 случай
+        //         length = b.width;
+        // }
+        // else{
+        //     if(b.x2 <= a.x2) {
+        //         // 2 случай
+        //         length = b.x2 - a.x;
+        //         console.log("2 случай");
+        //     }
+        //     else
+        //         length = a.width;
+        // }
+        // console.log(length);
+        // return (length/a.width)*100;
     };
+        // функция вычисляет процент отклонения от центра между двумя глазами
+    var procDeviationBetweenEyes = function(leftEye, rightEye, suspectedMouth){
+            // вычисляем центры
+        leftEye.center.x = leftEye.x + leftEye.width/2;
+        rightEye.center.x = rightEye.x + rightEye.width/2;
+        var center = (rightEye.center.x - leftEye.center.x)/2;
+        suspectedMouth.center.x = suspectedMouth.x + suspectedMouth.width/2;
+        return Math.abs(suspectedMouth.x-center.x)/(center.x - leftEye.center.x)*100;
+    };
+        // возвращаем области с facePart
+    var findRectWithFacePart = function(rects, facePart){
+        var result = [];
+        rects.forEach(function(rect){
+            if(rect.facePart == facePart)
+                result.push(rect);
+        });
+        return result;
+    };
+    var makeArrayClone = function(from, to){
+        to = to || [];
+        from.forEach(function(element){
+            to.push(makeClone(element));
+        });
+        return to;
+    };
+    var makeClone = function(from, to){
+        to = to || {};
+        for (var key in from)
+            to[key] = from[key];
+        return to;
+    };
+
         // процент пересечения одной области другой
-    var intersectionOy = function(a,b){};
+    var intersectionOy = function(a,b){
+        a.y2 = a.y + a.height;
+        b.y2 = b.y + b.height;
+        if(a.height<b.height){
+            //  меняем местами
+            var tmp = a;
+            a = b;
+            b = tmp;
+        }
+        var length = 0;
+        if(b.y >= a.y){
+            if(b.y2 >= a.y2) {
+                // 3 случай
+                length = a.y2 - b.y;
+
+            }
+            else
+                // 1 случай
+                length = b.height;
+        }
+        else{
+            if(b.y2 <= a.y) {
+                // 2 случай
+                length = b.y2 - a.y;
+                console.log("2 случай");
+            }
+            else
+                length = a.height;
+        }
+        console.log(length);
+        return (length/a.height)*100;
+    };
 	detection.addRect = function(x, y, width, heigth){};
 	detection.findPerson = function(){};
 } (window));

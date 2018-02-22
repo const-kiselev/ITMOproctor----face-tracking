@@ -24,6 +24,28 @@
     margin-top: 120px;
     position: absolute;
   }
+
+  .face{
+    border-color:#68E226;
+  }
+
+  .eye{
+    border-color: rgba(255, 43, 43, 0.56);
+  }
+  .mouth {
+    border-color: rgba(255, 236, 43, 0.43);
+  }
+
+  .leftEye{
+    border-color: #0400e2;
+  }
+
+  .rightEye{
+    border-color: #ff00de;
+  }
+  .mouth {
+    border-color: #daff00;
+  }
   </style>
 </head>
 <body>
@@ -55,18 +77,29 @@
 
         context.clearRect(0, 0, canvas.width, canvas.height);
 
-        detection.findFace(event.data);
+          var time = performance.now();
+
+          detection.findFace(event.data);
+          time = performance.now() - time;
+          console.log('Время выполнения detection.findFace = ', time);
         event.data.forEach(function(rect) {
+            var pr = false;
           if(rect.typeOfArea=='face')
-            context.strokeStyle = "#68E226"; // green
-          else if(rect.typeOfArea=='eye')
-            context.strokeStyle = "#FF2B2B"; // red
-          else if(rect.typeOfArea=='mouth')
-            context.strokeStyle = "#FFEC2B"; // yellow
-          context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+          {context.strokeStyle = "#68E226"; pr = true;} // green
+//          else if(rect.typeOfArea=='eye')
+//            context.strokeStyle = "#FF2B2B"; // red
+//          else if(rect.typeOfArea=='mouth')
+//            context.strokeStyle = "#FFEC2B"; // yellow
+          if(rect.facePart == "leftEye")
+          {context.strokeStyle = "#0400e2";pr = true;} // yellow
+          else if(rect.facePart == "rightEye")
+          {context.strokeStyle = "#ff00de"; pr = true;} // yellow
+          else if(rect.facePart == "mouth")
+          {context.strokeStyle = "#DAFF00";pr = true;}
 
+            if(pr)
+                context.strokeRect(rect.x, rect.y, rect.width, rect.height);
 
-          context.font = '11px Helvetica';
           
           //context.fillText('x: ' + rect.x + 'px', rect.x + rect.width + 5, rect.y + 11);
           //context.fillText('y: ' + rect.y + 'px', rect.x + rect.width + 5, rect.y + 22);
