@@ -20,10 +20,17 @@
 
   <style>
   video, canvas {
-    margin-left: 230px;
-    margin-top: 120px;
     position: absolute;
   }
+  .pos1 video, .pos1 canvas{
+         margin-left: 230px;
+         margin-top: 10px;
+     }
+  .pos2 video, .pos2 canvas{
+      margin-left: 230px;
+      margin-top: 300px;
+  }
+
 
   .face{
     border-color:#68E226;
@@ -50,13 +57,18 @@
 </head>
 <body>
   <div class="demo-title">
-    <p><a href="http://trackingjs.com" target="_parent">tracking.js</a> － get user's webcam and detect faces</p>
   </div>
 
   <div class="demo-frame">
     <div class="demo-container">
-      <video id="video" width="320" height="240" preload autoplay loop muted></video>
+        <div class="pos1">
+      <video id="detection-frame" width="320" height="240" preload autoplay loop muted></video>
       <canvas id="canvas" width="320" height="240"></canvas>
+        </div>
+        <div class="pos2">
+        <video id="video2" width="320" height="240" preload autoplay loop muted></video>
+        <canvas id="canvas2" width="320" height="240"></canvas>
+    </div>
     </div>
     <input value="Stop tracking" type="button" onclick="stopVideo()">
   </div>
@@ -66,30 +78,43 @@
       var canvas = document.getElementById('canvas');
       var context = canvas.getContext('2d');
 
-      var tracker = new tracking.ObjectTracker(['eye', 'mouth', 'face']);
-      // tracker.setInitialScale(1);
-      // tracker.setStepSize(1.7);
-      // tracker.setEdgesDensity(0.199);
+        var video2 = document.getElementById('video2');
+        var canvas2 = document.getElementById('canvas2');
+        var context2 = canvas2.getContext('2d');
 
-      tracking.track('#video', tracker, { camera: true });
+        var tracker = new tracking.ObjectTracker(['eye', 'mouth', 'face']);
+//        var emptyTracker = new tracking.ObjectTracker();
+       tracker.setInitialScale(1);
+       tracker.setStepSize(1.7);
+       tracker.setEdgesDensity(0.199);
 
+
+
+      tracking.track('#detection-frame', tracker, { camera: true });
+      tracking.track('#video2', tracker, { camera: true });
+        detection.init();
       tracker.on('track', function(event) {
 
         context.clearRect(0, 0, canvas.width, canvas.height);
+        context2.clearRect(0, 0, canvas2.width, canvas2.height);
 
           var time = performance.now();
-
           detection.findFace(event.data);
           time = performance.now() - time;
           console.log('Время выполнения detection.findFace = ', time);
+
         event.data.forEach(function(rect) {
-            var pr = false;
+            var pr = false, pr2 = false;
           if(rect.typeOfArea=='face')
-          {context.strokeStyle = "#68E226"; pr = true;} // green
-//          else if(rect.typeOfArea=='eye')
-//            context.strokeStyle = "#FF2B2B"; // red
-//          else if(rect.typeOfArea=='mouth')
-//            context.strokeStyle = "#FFEC2B"; // yellow
+          {context.strokeStyle = context2.strokeStyle = "#68E226"; pr = pr2 = true;} // green
+          else if(rect.typeOfArea=='eye') {
+              context2.strokeStyle = "#FF2B2B"; // red
+              pr2= true;
+          }
+          else if(rect.typeOfArea=='mouth'){
+                context2.strokeStyle = "#FFEC2B"; // yellow
+                pr2= true;
+            }
           if(rect.facePart == "leftEye")
           {context.strokeStyle = "#0400e2";pr = true;} // yellow
           else if(rect.facePart == "rightEye")
@@ -99,7 +124,8 @@
 
             if(pr)
                 context.strokeRect(rect.x, rect.y, rect.width, rect.height);
-
+          if(pr2)
+              context2.strokeRect(rect.x, rect.y, rect.width, rect.height);
           
           //context.fillText('x: ' + rect.x + 'px', rect.x + rect.width + 5, rect.y + 11);
           //context.fillText('y: ' + rect.y + 'px', rect.x + rect.width + 5, rect.y + 22);

@@ -9,7 +9,7 @@
   <script src="../../js/data/eye.js"></script>
   <script src="../../js/data/mouth.js"></script>
   <script src="../../js/data/face.js"></script>
-    <script src="../../js/detection.js?13"></script>
+  <script src="../../js/detection.js?13"></script>
   <style>
   #photo:hover .rect {
     opacity: .75;
@@ -49,7 +49,7 @@
   .rightEye{
     border-color: #ff00de;
   }
-  .mouth {
+  .detectMouth {
     border-color: #daff00;
   }
 
@@ -145,10 +145,10 @@
         rect.classList.add('rect');
           if(t=='face')
             rect.classList.add('face');
-          else if(t=='eye')
-            rect.classList.add('eye');
-          else if(t=='mouth')
-            rect.classList.add('mouth');
+//          else if(t=='eye')
+//            rect.classList.add('eye');
+//          else if(t=='mouth')
+//            rect.classList.add('mouth');
           if(facePart == "leftEye")
               rect.classList.add('leftEye');
           else if(facePart == "rightEye")

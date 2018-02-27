@@ -4,7 +4,5 @@
 + https://192.168.5.150/html/tests/face_tag.html
 + https://192.168.5.150/html/tests/face_camera.html
 
-СРЗНАЧ	0,338694044
-СРОТКЛ	0,090760192
-МАКС	0,983008627
-МИН	0,2
+ssh cabox@host13.codeanyhost.com -p PORT -i ~/.ssh/id_rsa
+https://proctor-kostyakiselev499299.codeanyapp.com
