@@ -3,18 +3,21 @@
 
 	    // минимальный процент пересечения двух rects
 	var SQUARES_INTERSECTION_MIN_PERCENT = 50,
-        PERSON_TIMEOUT = 200,
-        SUSPECT_OBJ_MIN_LIFE_TIME_TO_EVOLVE = 100,
-        SUSPECT_OBJ_MAX_LIFE_TIME_TO_DELETE = 100
-        ;
+        PERSON_TIMEOUT = 1,
+        SUSPECT_OBJ_MIN_LIFE_TIME_TO_EVOLVE = 200,
+        SUSPECT_OBJ_MAX_LIFE_TIME_TO_DELETE = 100;
+	detection.doNotRepeatAlert = false;
     detection.init = function(){
+        detection.updateFrequency = 0;
+        detection.numOfUpdates = 0;
+        detection.startTime = Date.now();
         detection.frame = [];
         detection.frame.width = window.document.getElementById("detection-frame").offsetHeight;
         detection.frame.height = window.document.getElementById("detection-frame").offsetHeight;
     };
 	    // Конструктор todo: реализовать lifeTime
 	var Person = function(){
-		this._timeCreated = Date.now();
+        this._timeCreated = Date.now();
         this._lifeTime= 0; // ms
         this._eyes = [];
         this._face;
@@ -28,8 +31,8 @@
         this._y = 0;
         this._checkEdge = function(){
             var minDistToHorizEdge = (detection.frame.width - this._width)/8,
-            minDistToVertEdge = (detection.frame.height - this._height)/8,
-            res = false;
+                minDistToVertEdge = (detection.frame.height - this._height)/8,
+                res = false;
             if(this._x <= minDistToHorizEdge)
                 res = true;
             else if(this._x > detection.frame.width - minDistToHorizEdge)
@@ -41,7 +44,7 @@
             this._nearEdge = res;
             return res;
         };
-	};
+    };
     Person.prototype.getAllAreas = function () {
         return this._allAreas;
     }
@@ -97,6 +100,9 @@
         return 1;
     }
     Person.prototype.updateLifeTime = function(){
+        detection.numOfUpdates++;
+        if(detection.numOfUpdates < 26)
+            detection.updateFrequency = (Date.now() - detection.startTime)/detection.numOfUpdates;
         this.lifeTime = Date.now() - this.timeCreated;
     }
     Person.prototype.getWidth = function(){return this._width};
@@ -105,9 +111,9 @@
     Person.prototype.getY = function(){return this._y;};
     Person.prototype.getNearEdge = function(){return this._nearEdge;};
     Person.prototype.outOfFrame = function(){
-        if(this.getTimeout() > PERSON_TIMEOUT*10 && !this._nearEdge)
+        if(this.getTimeout() > PERSON_TIMEOUT*10*detection.updateFrequency && !this._nearEdge)
             return true;
-        else if(this.getTimeout() > PERSON_TIMEOUT && this._nearEdge)
+        else if(this.getTimeout() > PERSON_TIMEOUT*detection.updateFrequency && this._nearEdge)
             return true;
         return false;
     };
@@ -117,7 +123,10 @@
         // наследование !!!
     SuspectObj.prototype = Object.create(Person.prototype);
     SuspectObj.prototype.checkLifeTime = function(){
-
+        if(this._lifeTime >= SUSPECT_OBJ_MIN_LIFE_TIME_TO_EVOLVE)
+            return true;
+        else
+            return false;
         // todo: реализовать
         // если данный объект живет уже достаочное время, то
 
@@ -195,13 +204,74 @@
             mouths = updateRects(mouths, res.rects);
             areas = updateRects(areas, res.rects);
                 // вызов функции сопоставления найденных объектов
-            console.log("comparison:"+comparison(areas.concat(currentFaceArea), res.faceVerify));
+            comparison(areas.concat(currentFaceArea), res.faceVerify);
+            //console.log("comparison:"+comparison(areas.concat(currentFaceArea), res.faceVerify));
         }
         /**
          * функция для определения лица при условии,
          * что есть области с типом "eye" и (или без) "mouth"
          */
-        function faceViaEyes(){}
+        function faceViaEyes(){
+            var res = [], suspectedFaceArea = [];
+            res.faceVerify = false;
+            var areasWithIntersection = findIntersections(eyes.concat(mouths), 60, 100);
+            console.log(areasWithIntersection);
+            if(areasWithIntersection.length>2){
+                // необходима проверка, есть ли с левой или с правой части такой же объект
+                // вычисляем относительно размера найденной области с пересечением!
+
+                suspectedFaceArea.width = areasWithIntersection[0].width * 2.5;
+                suspectedFaceArea.height = areasWithIntersection[0].height * 3.5;
+                suspectedFaceArea.x = areasWithIntersection[0].x - areasWithIntersection[0].width*1.4; // найденное пересечение является правым глазом
+                suspectedFaceArea.y = areasWithIntersection[0].y - areasWithIntersection[0].y*0.3;
+                var intersect = findIntersections(eyes.concat(mouths), 70, 100, suspectedFaceArea);
+                if(intersect.length > 0){
+                    if(intersect.length == 1){
+                        if(intersect[0].x < areasWithIntersection[0].x && intersectionOy(intersect[0], areasWithIntersection[0])>40)
+                        {
+                            intersect[0].facePart = "leftEye";
+                            areasWithIntersection[0].facePart = "rightEye";
+                            updateRects(eyes, areasWithIntersection);
+                            updateRects(mouths, areasWithIntersection);
+                            updateRects(eyes, intersect);
+                            updateRects(mouths, intersect);
+                            console.log("comparison:"+comparison(areas.concat(suspectedFaceArea), res.faceVerify));
+                        }
+                    }
+                    else {
+                        var partOfFace = makeClone(suspectedFaceArea);
+                        partOfFace.width = suspectedFaceArea.width /2; // левая часть лица
+                        var intersectionsOnFacePart = findIntersections(intersect, 60, 100, partOfFace);
+                        if(intersectionsOnFacePart.length == 1){
+                            if(intersectionOy(intersect[0], intersectionsOnFacePart[0])>40)
+                            {
+                                intersect[0].facePart = "leftEye";
+                                intersectionsOnFacePart[0].facePart = "rightEye";
+                                updateRects(eyes, intersectionsOnFacePart);
+                                updateRects(mouths, intersectionsOnFacePart);
+                                updateRects(eyes, intersect);
+                                updateRects(mouths, intersect);
+                                console.log("comparison:"+comparison(areas.concat(suspectedFaceArea), res.faceVerify));
+                            }
+                        }
+                    }
+                }
+                // если в массиве mouths есть элементы, и найден intersections, то проверять
+                // mouth по разработанному алгоритму в рамках определенной области
+            }
+            else if(areasWithIntersection.length == 2){
+                if(findMouth()) {
+                    res.faceVerify = true;
+                    console.log("comparison:" + comparison(areas.concat(suspectedFaceArea), res.faceVerify));
+                }
+
+            }
+
+
+            function findMouth(){
+                return false;
+            }
+        }
         function faceViaMouths(){}
 	};
     /**
@@ -227,7 +297,7 @@
             detection.persons.forEach(function cycle(person) {
                 if (cycle.stop) return;
                 // находим пересекающиеся области
-                var intersects = findIntersections(rects.concat(person.getAllAreas()), 60, 100);
+                var intersects = findIntersections(rects.concat(person.getAllAreas()), 80, 100);
                 // найденные пересечения сопоставляем и обновляем в персоне
                 // необходим маркер обновления
                 // желательно timestamp
@@ -241,7 +311,15 @@
                 result = "Person found";
                 person.updateLastActiveTime();
             });
+            if(result == ""){
+                if(faceVerify){
+                    detection.persons.push(new Person());
+                    detection.persons[0].updateArea(rects);
+                    result = "New person created";
+                }
+            }
         }
+
         controller();
         return result;
     };
@@ -372,10 +450,19 @@
             //
         var triangleRes = triangle();
         var result = [];
-        result.faceVerify = false;
+        result.faceVerify = true;
         //console.log("triangleRes = ",triangleRes);
         if(!triangleRes){
-            // todo: используем дургие методы. Сегодня делаю! И тестирую!
+            // todo: используем дургие методы.
+                var res = 0;
+                res = findEye();
+                if(!res) {
+                    res = findMouth();
+                    if(res)
+                        result.faceVerify = true;
+                }
+                else
+                    result.faceVerify = true;
 
         }
         else if(triangleRes == 1){
@@ -443,7 +530,9 @@
             if(suspectedMouths.length>1){
                 var foundMouthIndex = equivalentRectIndex(eAndM, suspectedMouths[0]);
                 eAndM[foundMouthIndex].facePart = "mouth";
-                delete uniqueRects[foundMouthIndex];
+                foundMouthIndex = equivalentRectIndex(uniqueRects, suspectedMouths[0]);
+                uniqueRects.splice(foundMouthIndex, 1);
+                //delete uniqueRects[foundMouthIndex];
                 res++;
                 // suspectedMouths.forEach(function(susp){
                 //         // смотрим, если процент отклонения рта от центра двух глаз менее 31, то
@@ -466,12 +555,57 @@
             else if(suspectedMouths.length){
                 var foundMouthIndex = equivalentRectIndex(eAndM, suspectedMouths[0]);
                 eAndM[foundMouthIndex].facePart = "mouth";
-                delete uniqueRects[foundMouthIndex];
+                foundMouthIndex = equivalentRectIndex(uniqueRects, suspectedMouths[0]);
+                uniqueRects.splice(foundMouthIndex, 1);
+                //delete uniqueRects[foundMouthIndex];
                 res++;
             } // на этом ВСЕ в треугольнике!!!!!!!!!
             return res;
         } // --- END triangle()
-
+        function findEye(){
+            var intersectedArea = false,
+                upperLeftAreaOfFace = makeClone(face);
+            upperLeftAreaOfFace.height = face.height/2;
+            upperLeftAreaOfFace.width = face.width/2;
+            var upperRightAreaOfFace = makeClone(upperLeftAreaOfFace);
+            upperRightAreaOfFace.x = face.x + upperLeftAreaOfFace.width;
+            eAndM.forEach(function cycle(area){
+                if(cycle.stop) return;
+                if(area.intersectionWith != undefined) {
+                    var intersections = findIntersections([area], 70, 100, upperLeftAreaOfFace);
+                    if(intersections.length > 0){
+                        var leftEyeAreaIndex = equivalentRectIndex(eAndM, intersections[0]);
+                        eAndM[leftEyeAreaIndex].facePart = "leftEye";
+                        intersectedArea = true;
+                        cycle.stop = true;
+                    }
+                    else{
+                        intersections = findIntersections([area], 70, 100, upperRightAreaOfFace);
+                        if(intersections.length > 0){
+                            var rightEyeAreaIndex = equivalentRectIndex(eAndM, intersections[0]);
+                            eAndM[rightEyeAreaIndex].facePart = "rightEye";
+                            intersectedArea = true;
+                            cycle.stop = true;
+                        }
+                    }
+                }
+            });
+            return intersectedArea;
+        }
+        function findMouth(){
+            var res = 0;
+            var buttomSide = makeClone(face);
+            buttomSide.height = face.height/2;
+            buttomSide.y += buttomSide.height;
+            var suspectedMouths = findIntersections(eAndM, 20, 60, buttomSide);
+            //console.log("suspectedMouths: ", suspectedMouths, "uniqueRects", uniqueRects);
+            if(suspectedMouths.length){
+                var foundMouthIndex = equivalentRectIndex(eAndM, suspectedMouths[0]);
+                eAndM[foundMouthIndex].facePart = "mouth";
+                res++;
+            }
+            return res;
+        }
     };
     /**
      * todo: --- to check!
@@ -485,18 +619,38 @@
     };
         // todo: добавить контроль за persons & suspObjs! по lastActiveTime
     var controller = function(){
+        //console.log("detection.persons.length = "+detection.persons.length);
+        //console.log("detection.updateFrequency = "+detection.updateFrequency);
+        //console.log("detection.numOfUpdates = "+detection.numOfUpdates);
+        //console.log("detection.updateFrequency = "+detection.updateFrequency);
+        if(detection.persons.length <= 2 && detection.doNotRepeatAlert){
+            detection.doNotRepeatAlert = false;
+            alert("There's one poerson on frame!");
+        }
+
+        if(detection.persons.length > 2 && !detection.doNotRepeatAlert) {
+            detection.doNotRepeatAlert = true;
+            alert("There's more than one poerson on frame!");
+            detection.persons = [];
+        }
         detection.persons.forEach(function(person, index){
             person.updateLifeTime();
-            if(person.outOfFrame()) {
+            if(person.outOfFrame() && detection.persons.length <= 2) {
                 alert("Person out of frame!");
                 detection.persons.splice(index, 1);
-                console.log("Person deleted");
+                //console.log("Person deleted");
+            }else if(person.outOfFrame() && detection.persons.length > 2){
+                detection.persons.splice(index, 1);
+                //console.log("Person deleted");
             }
 
         });
         detection.suspectObjs.forEach(function(suspObj, index){
                 if(suspObj.outOfFrame()){
                     detection.suspectObjs.splice(index, 1);
+                }
+                else if(suspObj.checkLifeTime()){
+
                 }
             });
     };
