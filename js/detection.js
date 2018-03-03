@@ -141,6 +141,7 @@
      * @param rects
      */
 	detection.findFace = function(rects) {
+	    var res = [];
 	        // разбиваем распознанные элементы согласно типам (typeOfArea)
 		var eyes = rects.filter(function(rect){
 			return rect.typeOfArea == "eye";
@@ -157,7 +158,7 @@
             var n = faces.length;
             // проходимся по всем найденным face
             for(var i =0; i<n; i++)
-                faceViaFaces();
+                res.push(faceViaFaces());
         }
 		else if(eyes.length) {
             //console.log("calling faceViaEyes()");
@@ -167,8 +168,8 @@
             //console.log("calling faceViaEyes()");
             faceViaMouths();
         }
-        controller();
-        return;
+        res.push(controller());
+        return res;
         /**
          * функция для определения лица при условии,
          * что есть хотя бы один найденный face.
@@ -204,7 +205,7 @@
             mouths = updateRects(mouths, res.rects);
             areas = updateRects(areas, res.rects);
                 // вызов функции сопоставления найденных объектов
-            comparison(areas.concat(currentFaceArea), res.faceVerify);
+            return comparison(areas.concat(currentFaceArea), res.faceVerify);
             //console.log("comparison:"+comparison(areas.concat(currentFaceArea), res.faceVerify));
         }
         /**
@@ -320,7 +321,9 @@
             }
         }
 
-        controller();
+        var controllerResult = controller();
+        if(controllerResult != "")
+            result = controllerResult;
         return result;
     };
 
@@ -619,24 +622,25 @@
     };
         // todo: добавить контроль за persons & suspObjs! по lastActiveTime
     var controller = function(){
+        var controllerRes = "";
         //console.log("detection.persons.length = "+detection.persons.length);
         //console.log("detection.updateFrequency = "+detection.updateFrequency);
         //console.log("detection.numOfUpdates = "+detection.numOfUpdates);
         //console.log("detection.updateFrequency = "+detection.updateFrequency);
         if(detection.persons.length <= 2 && detection.doNotRepeatAlert){
             detection.doNotRepeatAlert = false;
-            alert("There's one poerson on frame!");
+            controllerRes = "There's one poerson on frame!";
         }
 
         if(detection.persons.length > 2 && !detection.doNotRepeatAlert) {
             detection.doNotRepeatAlert = true;
-            alert("There's more than one poerson on frame!");
+            controllerRes = "There's more than one poerson on frame!";
             detection.persons = [];
         }
         detection.persons.forEach(function(person, index){
             person.updateLifeTime();
             if(person.outOfFrame() && detection.persons.length <= 2) {
-                alert("Person out of frame!");
+                controllerRes = "Person out of frame!";
                 detection.persons.splice(index, 1);
                 //console.log("Person deleted");
             }else if(person.outOfFrame() && detection.persons.length > 2){
@@ -653,6 +657,7 @@
 
                 }
             });
+        return controllerRes;
     };
     /**
      * площадь пересечения двух областей

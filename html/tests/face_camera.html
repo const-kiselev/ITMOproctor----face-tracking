@@ -97,7 +97,7 @@
         context2.clearRect(0, 0, canvas2.width, canvas2.height);
 
           var time = performance.now();
-          detection.findFace(event.data);
+          console.log(detection.findFace(event.data));
           time = performance.now() - time;
           console.log('Время выполнения detection.findFace = ', time);
 
